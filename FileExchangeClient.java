@@ -132,6 +132,7 @@ public class FileExchangeClient extends JFrame {
         inputField.addActionListener(e -> {
             String command = inputField.getText();
             inputField.setText("");
+            outputArea.append("Sending command: " + command + "\n");
             sendCommand(command);
         });
         add(inputField, BorderLayout.SOUTH);
