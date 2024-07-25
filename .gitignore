@@ -1,2 +1,4 @@
 # Ignore all .class files
 *.class
+*.txt
+server_files/
