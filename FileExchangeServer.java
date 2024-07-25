@@ -57,7 +57,7 @@ public class FileExchangeServer {
             try (BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
                     PrintWriter out = new PrintWriter(socket.getOutputStream(), true)) {
 
-                out.println("Welcome to the File Exchange Server!");
+                out.println("Connection to the File Exchange Server is successful!");
                 String message;
 
                 while ((message = in.readLine()) != null) {
@@ -119,9 +119,21 @@ public class FileExchangeServer {
                 try (FileOutputStream fos = new FileOutputStream(file)) {
                     byte[] buffer = new byte[4096];
                     int bytesRead;
-                    while ((bytesRead = socket.getInputStream().read(buffer)) != -1) {
+                    int totalBytesRead = 0;
+                    InputStream is = socket.getInputStream();
+
+                    // Read the file size first
+                    DataInputStream dis = new DataInputStream(is);
+                    long fileSize = dis.readLong();
+
+                    // Read the exact number of bytes expected for the file transfer
+                    while (totalBytesRead < fileSize && (bytesRead = is.read(buffer, 0,
+                            (int) Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
                         fos.write(buffer, 0, bytesRead);
+                        totalBytesRead += bytesRead;
                     }
+                    fos.flush();
+
                     String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
                     out.println("File uploaded successfully: " + fileName + " " + timestamp);
                 } catch (IOException e) {
