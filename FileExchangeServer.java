@@ -96,10 +96,11 @@ public class FileExchangeServer {
 
         private void handleRegister(String message, PrintWriter out) {
             String[] parts = message.split(" ", 2);
+            System.out.println(parts.length);
             if (parts.length == 2) {
                 String alias = parts[1];
                 if (registeredAliases.contains(alias)) {
-                    out.println("Error: Handle or alias already exists.");
+                    out.println("Error: Registration failed. Handle or alias already exists.");
                 } else {
                     registeredAliases.add(alias);
                     handle = alias;
@@ -163,15 +164,18 @@ public class FileExchangeServer {
             if (parts.length == 2) {
                 String fileName = parts[1];
                 File file = new File(STORAGE_DIR, fileName);
-                if (file.exists()) {
-                    out.println("Ready to send file: " + fileName);
-                    try (FileInputStream fis = new FileInputStream(file)) {
+                if (file.exists() && !file.isDirectory()) {
+                    out.println("Sending file: " + fileName);
+                    try (FileInputStream fis = new FileInputStream(file);
+                            OutputStream os = socket.getOutputStream()) {
                         byte[] buffer = new byte[4096];
                         int bytesRead;
                         while ((bytesRead = fis.read(buffer)) != -1) {
-                            socket.getOutputStream().write(buffer, 0, bytesRead);
+                            os.write(buffer, 0, bytesRead);
                         }
-                        out.println("File sent successfully: " + fileName);
+                        os.flush();
+                        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
+                        out.println("File sent successfully: " + fileName + " " + timestamp);
                     } catch (IOException e) {
                         out.println("Error: Failed to send file " + fileName);
                         e.printStackTrace();
@@ -180,7 +184,7 @@ public class FileExchangeServer {
                     out.println("Error: File not found in the server.");
                 }
             } else {
-                out.println("Error: Command parameters do not match or are not allowed.");
+                out.println("Error: Command parameters do not match or is not allowed.");
             }
         }
 

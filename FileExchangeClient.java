@@ -156,8 +156,11 @@ public class FileExchangeClient extends JFrame {
             readThread = new Thread(this::readServerMessages);
             readThread.start();
         } catch (IOException e) {
-            outputArea.append("Error: Unable to connect to server.\n");
-            JOptionPane.showMessageDialog(this, "Error: Unable to connect to server.", "Connection Error",
+            outputArea
+                    .append("Error: Connection to the Serveer has failed! Please check IP Address and Port Number.\n");
+            JOptionPane.showMessageDialog(this,
+                    "Error: Connection to the Serveer has failed! Please check IP Address and Port Number.",
+                    "Connection Error",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -173,6 +176,10 @@ public class FileExchangeClient extends JFrame {
     private void sendFile(File file) {
         try (FileInputStream fis = new FileInputStream(file);
                 OutputStream os = socket.getOutputStream()) {
+
+            // Send the file size first
+            DataOutputStream dos = new DataOutputStream(os);
+            dos.writeLong(file.length());
 
             byte[] buffer = new byte[4096];
             int bytesRead;
@@ -200,8 +207,8 @@ public class FileExchangeClient extends JFrame {
             fos.flush();
             outputArea.append("File received: " + fileName + "\n");
         } catch (IOException e) {
-            outputArea.append("Error: Unable to receive file.\n");
-            JOptionPane.showMessageDialog(this, "Error: Unable to receive file.", "File Transfer Error",
+            outputArea.append("Error: File not found in the server.\n");
+            JOptionPane.showMessageDialog(this, "Error: File not found in the server.", "File Transfer Error",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
@@ -225,7 +232,7 @@ public class FileExchangeClient extends JFrame {
             if (readThread != null) {
                 readThread.interrupt();
             }
-            outputArea.append("Disconnected from server.\n");
+            outputArea.append("Connection closed. Thank you!.\n");
         } catch (IOException e) {
             outputArea.append("Error: Unable to close connection.\n");
             JOptionPane.showMessageDialog(this, "Error: Unable to close connection.", "Disconnection Error",
