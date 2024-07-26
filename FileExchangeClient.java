@@ -130,11 +130,12 @@ public class FileExchangeClient extends JFrame {
         inputField = new JTextField();
         inputField.setEditable(true);
         inputField.addActionListener(e -> {
-            String command = inputField.getText();
+            String command = inputField.getText().trim();
             inputField.setText("");
             outputArea.append("Sending command: " + command + "\n");
             sendCommand(command);
         });
+
         add(inputField, BorderLayout.SOUTH);
 
         // File chooser
@@ -166,6 +167,24 @@ public class FileExchangeClient extends JFrame {
     }
 
     private void sendCommand(String command) {
+        if (command.startsWith("/join")) {
+            String[] parts = command.split(" ");
+            if (parts.length == 3) {
+                String serverIP = parts[1];
+                int port;
+                try {
+                    port = Integer.parseInt(parts[2]);
+                    connect(serverIP, port);
+                    return;
+                } catch (NumberFormatException e) {
+                    outputArea.append("Error: Invalid port number.\n");
+                    return;
+                }
+            } else {
+                outputArea.append("Error: Command parameters do not match or are not allowed.\n");
+                return;
+            }
+        }
         if (out != null) {
             out.println(command);
         } else {
