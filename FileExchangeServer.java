@@ -115,26 +115,28 @@ public class FileExchangeServer {
             String[] parts = message.split(" ", 2);
             if (parts.length == 2) {
                 String fileName = parts[1];
-                out.println("Ready to receive file: " + fileName);
                 File file = new File(STORAGE_DIR, fileName);
                 try (FileOutputStream fos = new FileOutputStream(file)) {
-                    byte[] buffer = new byte[4096];
-                    int bytesRead;
-                    int totalBytesRead = 0;
-                    InputStream is = socket.getInputStream();
+                    out.println("Ready to receive file: " + fileName);
 
-                    // Read the file size first
+                    InputStream is = socket.getInputStream();
                     DataInputStream dis = new DataInputStream(is);
                     long fileSize = dis.readLong();
 
-                    // Read the exact number of bytes expected for the file transfer
-                    while (totalBytesRead < fileSize && (bytesRead = is.read(buffer, 0,
-                            (int) Math.min(buffer.length, fileSize - totalBytesRead))) != -1) {
+                    if (fileSize <= 0) {
+                        out.println("Error: File size is invalid.");
+                        return;
+                    }
+
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    long totalBytesRead = 0;
+                    while (totalBytesRead < fileSize && (bytesRead = is.read(buffer)) != -1) {
                         fos.write(buffer, 0, bytesRead);
                         totalBytesRead += bytesRead;
                     }
-                    fos.flush();
 
+                    fos.flush();
                     String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
                     out.println("File uploaded successfully: " + fileName + " " + timestamp);
                 } catch (IOException e) {
@@ -165,17 +167,34 @@ public class FileExchangeServer {
                 String fileName = parts[1];
                 File file = new File(STORAGE_DIR, fileName);
                 if (file.exists() && !file.isDirectory()) {
-                    out.println("Sending file: " + fileName);
-                    try (FileInputStream fis = new FileInputStream(file);
-                            OutputStream os = socket.getOutputStream()) {
-                        byte[] buffer = new byte[4096];
-                        int bytesRead;
-                        while ((bytesRead = fis.read(buffer)) != -1) {
-                            os.write(buffer, 0, bytesRead);
+                    try {
+                        // Send OK response
+                        out.println("OK");
+
+                        // Read and send file contents line by line
+                        try (BufferedReader fileReader = new BufferedReader(new FileReader(file));
+                                OutputStream os = socket.getOutputStream()) {
+
+                            String line;
+                            while ((line = fileReader.readLine()) != null) {
+                                out.println(line);
+                            }
+                            out.println(); // End of file content marker
+
+                            // Send file binary data
+                            try (FileInputStream fis = new FileInputStream(file)) {
+                                byte[] buffer = new byte[4096];
+                                int bytesRead;
+                                while ((bytesRead = fis.read(buffer)) != -1) {
+                                    os.write(buffer, 0, bytesRead);
+                                }
+                                os.flush();
+                            }
+
+                            // Send file transfer completion message
+                            out.println("File sent successfully: " + fileName + " "
+                                    + new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date()));
                         }
-                        os.flush();
-                        String timestamp = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss").format(new Date());
-                        out.println("File sent successfully: " + fileName + " " + timestamp);
                     } catch (IOException e) {
                         out.println("Error: Failed to send file " + fileName);
                         e.printStackTrace();
@@ -184,7 +203,7 @@ public class FileExchangeServer {
                     out.println("Error: File not found in the server.");
                 }
             } else {
-                out.println("Error: Command parameters do not match or is not allowed.");
+                out.println("Error: Command parameters do not match or are not allowed.");
             }
         }
 

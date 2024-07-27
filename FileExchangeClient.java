@@ -88,8 +88,7 @@ public class FileExchangeClient extends JFrame {
                 if (returnValue == JFileChooser.APPROVE_OPTION) {
                     File selectedFile = fileChooser.getSelectedFile();
                     outputArea.append("Storing file: " + selectedFile.getName() + "\n");
-                    sendCommand("/store " + selectedFile.getName());
-                    sendFile(selectedFile);
+                    storeFile(selectedFile);
                 }
             }
         });
@@ -192,11 +191,22 @@ public class FileExchangeClient extends JFrame {
         }
     }
 
+    private void storeFile(File file) {
+        if (!file.exists() || file.isDirectory()) {
+            outputArea.append("Error: File not found.\n");
+            JOptionPane.showMessageDialog(this, "Error: File not found.", "File Transfer Error",
+                    JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        sendCommand("/store " + file.getName());
+        sendFile(file);
+    }
+
     private void sendFile(File file) {
         try (FileInputStream fis = new FileInputStream(file);
                 OutputStream os = socket.getOutputStream()) {
 
-            // Send the file size first
             DataOutputStream dos = new DataOutputStream(os);
             dos.writeLong(file.length());
 
@@ -214,20 +224,56 @@ public class FileExchangeClient extends JFrame {
     }
 
     private void receiveFile(String fileName) {
-        File file = new File(fileName);
-        try (FileOutputStream fos = new FileOutputStream(file);
-                InputStream is = socket.getInputStream()) {
+        try {
+            PrintWriter out = new PrintWriter(socket.getOutputStream(), true);
+            BufferedReader in = new BufferedReader(new InputStreamReader(socket.getInputStream()));
 
-            byte[] buffer = new byte[4096];
-            int bytesRead;
-            while ((bytesRead = is.read(buffer)) != -1) {
-                fos.write(buffer, 0, bytesRead);
+            // Send the GET command to the server
+            out.println("/get " + fileName);
+
+            // Read the server's response
+            String serverResponse = in.readLine();
+            System.out.println("Server Response: " + serverResponse);
+
+            if ("OK".equals(serverResponse)) {
+                // Read and print file contents before receiving the binary data
+                StringBuilder fileContents = new StringBuilder();
+                String line;
+
+                // Read file content until end marker is found
+                while (!(line = in.readLine()).isEmpty()) {
+                    fileContents.append(line).append("\n");
+                }
+
+                // Print file contents to console or output area
+                outputArea.append("File contents:\n" + fileContents.toString() + "\n");
+
+                // Receive and save the binary data
+                File file = new File(fileName);
+                try (FileOutputStream fos = new FileOutputStream(file);
+                        InputStream is = socket.getInputStream()) {
+
+                    byte[] buffer = new byte[4096];
+                    int bytesRead;
+                    while ((bytesRead = is.read(buffer)) != -1) {
+                        fos.write(buffer, 0, bytesRead);
+                    }
+                    fos.flush();
+                    outputArea.append("File received: " + fileName + "\n");
+                } catch (IOException e) {
+                    outputArea.append("Error: Unable to save the received file.\n");
+                    JOptionPane.showMessageDialog(this, "Error: Unable to save the received file.",
+                            "File Transfer Error",
+                            JOptionPane.ERROR_MESSAGE);
+                }
+            } else {
+                // Handle the error response from the server
+                outputArea.append("Error: " + serverResponse + "\n");
+                JOptionPane.showMessageDialog(this, serverResponse, "File Transfer Error", JOptionPane.ERROR_MESSAGE);
             }
-            fos.flush();
-            outputArea.append("File received: " + fileName + "\n");
         } catch (IOException e) {
-            outputArea.append("Error: File not found in the server.\n");
-            JOptionPane.showMessageDialog(this, "Error: File not found in the server.", "File Transfer Error",
+            outputArea.append("Error: Unable to receive file from server.\n");
+            JOptionPane.showMessageDialog(this, "Error: Unable to receive file from server.", "File Transfer Error",
                     JOptionPane.ERROR_MESSAGE);
         }
     }
