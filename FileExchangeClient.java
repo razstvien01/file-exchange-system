@@ -235,7 +235,7 @@ public class FileExchangeClient extends JFrame {
             String serverResponse = in.readLine();
             System.out.println("Server Response: " + serverResponse);
 
-            if ("OK".equals(serverResponse)) {
+            if (!serverResponse.contains("Error")) {
                 // Read and print file contents before receiving the binary data
                 StringBuilder fileContents = new StringBuilder();
                 String line;
